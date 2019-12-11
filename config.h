@@ -5,7 +5,7 @@
  *
  * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
  */
-static char *font = "DejaVu Sans Mono:pixelsize=14:antialias=true:autohint=true";
+static char *font = "Liberation Mono:pixelsize=16:antialias=true:autohint=true";
 static int borderpx = 2;
 
 /*
@@ -30,9 +30,9 @@ static float chscale = 1.0;
 /*
  * word delimiter string
  *
- * More advanced example: " `'\"()[]{}"
+ * More advanced example: L" `'\"()[]{}"
  */
-char *worddelimiters = " ";
+wchar_t *worddelimiters = L" ";
 
 /* selection timeouts (in milliseconds) */
 static unsigned int doubleclicktimeout = 300;
@@ -84,31 +84,32 @@ unsigned int tabspaces = 8;
 
 /* Terminal colors (16 first used in escape sequence) */
 static const char *colorname[] = {
+
     /* 8 normal colors */
-    [0] = "#1e2127", /* black   */
-    [1] = "#e06c75", /* red     */
-    [2] = "#98c379", /* green   */
-    [3] = "#d19a66", /* yellow  */
-    [4] = "#61afef", /* blue    */
-    [5] = "#c678dd", /* magenta */
-    [6] = "#56b6c2", /* cyan    */
-    [7] = "#abb2bf", /* white   */
+    [0] = "#262626", /* black   */
+    [1] = "#ff0000", /* red     */
+    [2] = "#5faf5f", /* green   */
+    [3] = "#d7af5f", /* yellow  */
+    [4] = "#005faf", /* blue    */
+    [5] = "#af00af", /* magenta */
+    [6] = "#005f5f", /* cyan    */
+    [7] = "#afafaf", /* white   */
 
     /* 8 bright colors */
-    [8]  = "#5c6370", /* black   */
-    [9]  = "#e06c75", /* red     */
-    [10] = "#98c379", /* green   */
-    [11] = "#d19a66", /* yellow  */
-    [12] = "#61afef", /* blue    */
-    [13] = "#c678dd", /* magenta */
-    [14] = "#56b6c2", /* cyan    */
-    [15] = "#ffffff", /* white   */
+    [8]  = "#5f5f5f", /* black   */
+    [9]  = "#ff5f87", /* red     */
+    [10] = "#87d787", /* green   */
+    [11] = "#d7af87", /* yellow  */
+    [12] = "#00afff", /* blue    */
+    [13] = "#d75fd7", /* magenta */
+    [14] = "#00afd7", /* cyan    */
+    [15] = "#dadada", /* white   */
 
-    /* special colors */
-    [256] = "#262626", /* background */
-    [257] = "#cdd5e5", /* foreground */
+    [255] = 0,
 
-
+    /* more colors can be added after 255 to use with DefaultXX */
+    "#cccccc",
+    "#555555",
 };
 
 
@@ -116,10 +117,10 @@ static const char *colorname[] = {
  * Default colors (colorname index)
  * foreground, background, cursor, reverse cursor
  */
-unsigned int defaultfg = 257;
-unsigned int defaultbg = 256;
-static unsigned int defaultcs = 7;
-static unsigned int defaultrcs = 7;
+unsigned int defaultfg = 7;
+unsigned int defaultbg = 0;
+static unsigned int defaultcs = 256;
+static unsigned int defaultrcs = 257;
 
 /*
  * Default shape of cursor
@@ -134,8 +135,8 @@ static unsigned int cursorshape = 2;
  * Default columns and rows numbers
  */
 
-static unsigned int cols = 100;
-static unsigned int rows = 36;
+static unsigned int cols = 80;
+static unsigned int rows = 24;
 
 /*
  * Default colour and shape of the mouse cursor
@@ -151,19 +152,21 @@ static unsigned int mousebg = 0;
 static unsigned int defaultattr = 11;
 
 /*
+ * Force mouse select/shortcuts while mask is active (when MODE_MOUSE is set).
+ * Note that if you want to use ShiftMask with selmasks, set this to an other
+ * modifier, set to 0 to not use it.
+ */
+static uint forcemousemod = ShiftMask;
+
+/*
  * Internal mouse shortcuts.
  * Beware that overloading Button1 will disable the selection.
  */
 static MouseShortcut mshortcuts[] = {
-    /* button               mask            string */
-    { Button4,              XK_NO_MOD,      "\031" },
-    { Button5,              XK_NO_MOD,      "\005" },
-};
-
-MouseKey mkeys[] = {
-    /* button               mask            function        argument */
-    { Button4,              ShiftMask,      kscrollup,      {.i =  1} },
-    { Button5,              ShiftMask,      kscrolldown,    {.i =  1} },
+    /* mask                 button   function        argument       release */
+    { XK_ANY_MOD,           Button2, selpaste,       {.i = 0},      1 },
+    { XK_ANY_MOD,           Button4, ttysend,        {.s = "\031"} },
+    { XK_ANY_MOD,           Button5, ttysend,        {.s = "\005"} },
 };
 
 /* Internal keyboard shortcuts. */
@@ -176,14 +179,12 @@ static Shortcut shortcuts[] = {
     { ControlMask,          XK_Print,       toggleprinter,  {.i =  0} },
     { ShiftMask,            XK_Print,       printscreen,    {.i =  0} },
     { XK_ANY_MOD,           XK_Print,       printsel,       {.i =  0} },
-    { ShiftMask,            XK_Home,        zoom,           {.f = +1} },
-    { ShiftMask,            XK_End,         zoom,           {.f = -1} },
+    { TERMMOD,              XK_Prior,       zoom,           {.f = +1} },
+    { TERMMOD,              XK_Next,        zoom,           {.f = -1} },
     { TERMMOD,              XK_Home,        zoomreset,      {.f =  0} },
     { TERMMOD,              XK_C,           clipcopy,       {.i =  0} },
     { TERMMOD,              XK_V,           clippaste,      {.i =  0} },
     { TERMMOD,              XK_Y,           selpaste,       {.i =  0} },
-    { ShiftMask,            XK_Page_Up,     kscrollup,      {.i = -1} },
-    { ShiftMask,            XK_Page_Down,   kscrolldown,    {.i = -1} },
     { ShiftMask,            XK_Insert,      selpaste,       {.i =  0} },
     { TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
 };
@@ -203,10 +204,6 @@ static Shortcut shortcuts[] = {
  * * 0: no value
  * * > 0: cursor application mode enabled
  * * < 0: cursor application mode disabled
- * crlf value
- * * 0: no value
- * * > 0: crlf mode is enabled
- * * < 0: crlf mode is disabled
  *
  * Be careful with the order of the definitions because st searches in
  * this table sequentially, so any XK_ANY_MOD must be in the last
@@ -224,13 +221,6 @@ static KeySym mappedkeys[] = { -1 };
  * numlock (Mod2Mask) and keyboard layout (XK_SWITCH_MOD) are ignored.
  */
 static uint ignoremod = Mod2Mask|XK_SWITCH_MOD;
-
-/*
- * Override mouse-select while mask is active (when MODE_MOUSE is set).
- * Note that if you want to use ShiftMask with selmasks, set this to an other
- * modifier, set to 0 to not use it.
- */
-static uint forceselmod = ShiftMask;
 
 /*
  * This is the huge key array which defines all compatibility to the Linux
