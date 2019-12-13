@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+TryExec=st
+Exec=st
+Icon=utilities-terminal
+Terminal=false
+Categories=TerminalEmulator;
+Actions=NewWindow;NewTab;
+X-DBUS-StartupType=Unique
+StartupNotify=true
+X-KDE-AuthorizeAction=shell_access
+StartupWMClass=st
+
